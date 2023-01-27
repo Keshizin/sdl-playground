@@ -11,6 +11,12 @@ lib/
 !lib/.keep
 
 
+# ignoring bin binaries
+/bin/
+!bin/.keep
+
+
 # ignoring Microsoft Visual Studio stuff
 .vs/
 out/
+

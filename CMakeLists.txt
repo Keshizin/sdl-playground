@@ -17,6 +17,7 @@ project(sdl-playground)
 #
 
 set(APP_EXE playground)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 
 #
