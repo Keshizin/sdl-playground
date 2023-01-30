@@ -5,7 +5,19 @@
 
 #include <SDL.h>
 #include <iostream>
+#include <string>
 
+
+#define WINDOW_SCREEN_WIDTH 640
+#define WINDOW_SCREEN_HEIGHT 480
+
+
+SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename, int width);
+void blit(SDL_Renderer* renderer, SDL_Texture* texture, int x, int y);
+
+/*
+	Entry Point
+*/
 int main(int argc, char* argv[])
 {
 	/*
@@ -66,8 +78,9 @@ int main(int argc, char* argv[])
 		using SDL_GL_CreateContext() after window creation, before calling any OpenGL functions.
 	*/
 
+	//Uint32 windowFlags = SDL_WINDOW_FULLSCREEN_DESKTOP;
 	Uint32 windowFlags = 0;
-	SDL_Window* screen = SDL_CreateWindow("SDL Playground", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, windowFlags);
+	SDL_Window* screen = SDL_CreateWindow("SDL Playground", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT, windowFlags);
 
 	if (screen == nullptr)
 	{
@@ -87,8 +100,6 @@ int main(int argc, char* argv[])
 
 	*/
 
-	//SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-
 	Uint32 rendererFlags = SDL_RENDERER_ACCELERATED;
 	SDL_Renderer* renderer = SDL_CreateRenderer(screen, -1, rendererFlags);
 
@@ -97,10 +108,24 @@ int main(int argc, char* argv[])
 		std::cout << "(!) Failed to create the SDL renderer: " << SDL_GetError() << std::endl;
 	}
 
-	std::cout << "> Number of 2D rendering drivers available for the current display: " << SDL_GetNumRenderDrivers << std::endl;
+	int numRenderDrivers = SDL_GetNumRenderDrivers();
+	std::cout << "> Number of 2D rendering drivers available for the current display: " << numRenderDrivers << std::endl;
 
-	SDL_RendererInfo rendererInfo;
-	//SDL_GetRenderDriverInfo(2, &rendererInfo);
+	// get info about a specific 2D rendering driver for the current display
+
+	for (int driver = 0; driver < numRenderDrivers; driver++)
+	{
+		SDL_RendererInfo rendererInfo;
+		SDL_GetRenderDriverInfo(driver, &rendererInfo);
+		std::cout << "> [" << driver << "] Name of the renderer : " << rendererInfo.name << std::endl;
+	}
+
+	// make the scaled rendering look smoother.
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+	SDL_RenderSetLogicalSize(renderer, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
+
+	// loading a simple texture
+	SDL_Texture* myTexture = loadTexture(renderer, "texture.png", WINDOW_SCREEN_WIDTH);
 
 
 	/*
@@ -108,14 +133,11 @@ int main(int argc, char* argv[])
 	*/
 
 	bool isRunning = true;
+	
+	SDL_SetRenderDrawColor(renderer, 96, 128, 255, 255);
 
 	while (isRunning)
 	{
-		// clear the window
-		SDL_SetRenderDrawColor(renderer, 96, 128, 255, 255);
-		SDL_RenderClear(renderer);
-		
-
 		// input 
 		SDL_Event event;
 
@@ -132,6 +154,17 @@ int main(int argc, char* argv[])
 			}
 		}
 
+
+		/*
+			Update
+		*/
+
+		// blit operation (copying pixels to GPU memory)
+		if (myTexture != nullptr)
+			blit(renderer, myTexture, 0, 0);
+
+		// clear the window
+		SDL_RenderClear(renderer);
 
 		// render
 		SDL_RenderPresent(renderer);
@@ -160,4 +193,67 @@ int main(int argc, char* argv[])
 	SDL_Quit();
 
 	return 0;
+}
+
+
+SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename, int width)
+{
+	/*
+		SDL2 still has SDL_Surface, but what you want, if possible, is the new SDL_Texture.
+		
+		Surfaces are always in system RAM now, and are always operated on by the CPU, so we want to get away from there.
+		
+		SDL2 has a new rendering API. It's meant for use by simple 2D games, but most notably, it's meant to get all that
+		software rendering into video RAM and onto the GPU. And even if you just want to use it to get your software renderer's
+		work to the screen, it brings some very nice benefits: if possible, it will use OpenGL or Direct3D behind the scenes, which
+		means you'll get faster blits, a working Steam Overlay, and scaling for free.
+
+		At this point, your 1.2 game had a bunch of SDL_Surfaces, which it would SDL_BlitSurface() to the screen surface to compose the final framebuffer,
+		and eventually SDL_Flip() to the screen. For SDL 2.0, you have a bunch of SDL_Textures, that you will SDL_RenderCopy() to your Renderer to compose
+		the final framebuffer, and eventually SDL_RenderPresent() to the screen. It's that simple. If these textures never need modification, you might find
+		your framerate has just gone through the roof, too.
+	*/
+
+	SDL_Texture* texture;
+
+
+	/*
+		Create a texture for a rendering context.
+
+		SDL_TEXTUREACCESS_STREAMING tells SDL that this texture's contents are going to change frequently.
+		SDL_TEXTUREACCESS_STATIC
+
+	*/
+
+	//SDL_CreateTextureFromSurface();
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
+
+	if (texture == nullptr)
+	{
+		std::cout << "(!) Failed to create the SDL texture: " << SDL_GetError() << std::endl;
+		return nullptr;
+	}
+
+	Uint32* pixels = nullptr;
+
+	/*
+		Update the given texture rectangle with new pixel data.
+		This will upload your pixels to GPU memory.
+	*/
+	int ret = SDL_UpdateTexture(texture, nullptr, pixels, width * sizeof(Uint32));
+
+	if (ret)
+	{
+		std::cout << "(!) Failed to update the SDL texture: " << SDL_GetError() << std::endl;
+		SDL_DestroyTexture(texture);
+		texture = nullptr;
+	}
+
+	return texture;
+}
+
+
+void blit(SDL_Renderer* renderer, SDL_Texture* texture, int x, int y)
+{
+	SDL_RenderCopy(renderer, texture, nullptr, nullptr);
 }
