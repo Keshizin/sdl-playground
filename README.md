@@ -6,9 +6,25 @@ The purpose of this project is study **Simple DirectMedia (SDL)** and other popu
 - SDL TTF
 - FFMPEG
 - SDL and OpenGL
+- FreeType
 
-> **Note:** For the Microsoft Windows platform, you need to compile SDL by yourself and copy the headers and binaries to the ```include``` and ```lib``` directories. We have scripts in python that done this work for us. Just follow the instructions below:
+## Notes for dependecies
+
+Todas as bibliotecas de terceiros não estão incluídas neste projeto, porém temos scripts para obtê-las e copiar os seus binários no diretório correto. Em alguns casos, será necessário compilá-las também (por exemplo, SDL2 para a plataforma Microsoft Window).
+
+#### Obtendo e compilando SDL2
+
+Caso você esteja na plataforma Microsoft Windows, basta executar o script abaixo para compilar o SDL2 e copiar os binários gerados para os diretórios corretos:
 
 ```
-> win-get-sdl.bat
+> get-sdl.bat
+```
+
+
+#### Obtendo nothings/stb
+
+Para obter os arquivos de header de nothing/stb, basta executar o script abaixo:
+
+```
+> get-stb.bat
 ```
