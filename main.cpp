@@ -7,12 +7,15 @@
 #include <iostream>
 #include <string>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 
 #define WINDOW_SCREEN_WIDTH 640
 #define WINDOW_SCREEN_HEIGHT 480
 
 
-SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename, int width);
+SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename);
 void blit(SDL_Renderer* renderer, SDL_Texture* texture, int x, int y);
 
 /*
@@ -125,7 +128,8 @@ int main(int argc, char* argv[])
 	SDL_RenderSetLogicalSize(renderer, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
 
 	// loading a simple texture
-	SDL_Texture* myTexture = loadTexture(renderer, "texture.png", WINDOW_SCREEN_WIDTH);
+	//SDL_Texture* myTexture = loadTexture(renderer, "yourimage.png");
+	SDL_Texture* myTexture = nullptr;
 
 
 	/*
@@ -135,6 +139,7 @@ int main(int argc, char* argv[])
 	bool isRunning = true;
 	
 	SDL_SetRenderDrawColor(renderer, 96, 128, 255, 255);
+	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
 	while (isRunning)
 	{
@@ -154,17 +159,12 @@ int main(int argc, char* argv[])
 			}
 		}
 
-
-		/*
-			Update
-		*/
+		// clear the window
+		SDL_RenderClear(renderer);
 
 		// blit operation (copying pixels to GPU memory)
 		if (myTexture != nullptr)
 			blit(renderer, myTexture, 0, 0);
-
-		// clear the window
-		SDL_RenderClear(renderer);
 
 		// render
 		SDL_RenderPresent(renderer);
@@ -196,8 +196,19 @@ int main(int argc, char* argv[])
 }
 
 
-SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename, int width)
+SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename)
 {
+	int width;
+	int height;
+	int channel;
+
+	unsigned char* pixels = stbi_load(filename.c_str(), &width, &height, &channel, STBI_rgb_alpha);
+
+	if (pixels == nullptr) {
+		std::cout << "(!) Failed to load image file: " << filename;
+		return false;
+	}
+
 	/*
 		SDL2 still has SDL_Surface, but what you want, if possible, is the new SDL_Texture.
 		
@@ -226,34 +237,51 @@ SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename, int width
 	*/
 
 	//SDL_CreateTextureFromSurface();
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 
 	if (texture == nullptr)
 	{
 		std::cout << "(!) Failed to create the SDL texture: " << SDL_GetError() << std::endl;
+		stbi_image_free(pixels);
 		return nullptr;
 	}
 
-	Uint32* pixels = nullptr;
+	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
 	/*
 		Update the given texture rectangle with new pixel data.
 		This will upload your pixels to GPU memory.
 	*/
-	int ret = SDL_UpdateTexture(texture, nullptr, pixels, width * sizeof(Uint32));
+	int ret = SDL_UpdateTexture(texture, nullptr, pixels, width * channel);
 
 	if (ret)
 	{
 		std::cout << "(!) Failed to update the SDL texture: " << SDL_GetError() << std::endl;
 		SDL_DestroyTexture(texture);
+		stbi_image_free(pixels);
 		texture = nullptr;
 	}
 
+	stbi_image_free(pixels);
 	return texture;
 }
 
 
 void blit(SDL_Renderer* renderer, SDL_Texture* texture, int x, int y)
 {
-	SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+	SDL_Rect finalRect;
+
+	finalRect.x = x;
+	finalRect.y = y;
+	finalRect.w = 32;
+	finalRect.h = 32;
+
+	SDL_QueryTexture(texture, NULL, NULL, &finalRect.w, &finalRect.h);
+
+	int ret = SDL_RenderCopy(renderer, texture, nullptr, &finalRect);
+
+	if (ret < 0)
+	{
+		std::cout << "(!) Failed to copy texture to renderer: " << SDL_GetError() << std::endl;
+	}
 }

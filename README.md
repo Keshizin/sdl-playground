@@ -7,6 +7,7 @@ The purpose of this project is study **Simple DirectMedia (SDL)** and other popu
 - FFMPEG
 - SDL and OpenGL
 - FreeType
+- nothings/stb
 
 ## Notes for dependecies
 
