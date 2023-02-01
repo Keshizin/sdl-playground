@@ -4,6 +4,8 @@
 # ignoring SDL include headers
 include/SDL2/
 !include/SDL2/.keep
+include/stb/
+!include/stb/.keep
 
 
 # ignoring all lib binaries
