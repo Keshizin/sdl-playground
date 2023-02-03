@@ -17,10 +17,23 @@
 
 SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename);
 void blit(SDL_Renderer* renderer, SDL_Texture* texture, int x, int y);
+void keyboardEvent(SDL_KeyboardEvent* e);
+
+
+typedef struct entity
+{
+	int x;
+	int y;
+};
+
+
+entity player { 0, 0 };
+
 
 /*
 	Entry Point
 */
+
 int main(int argc, char* argv[])
 {
 	/*
@@ -153,18 +166,37 @@ int main(int argc, char* argv[])
 			case SDL_QUIT:
 				isRunning = false;
 				break;
+			
+
+			/*
+				keyboard events
+			*/
+
+			case SDL_KEYDOWN:
+				keyboardEvent(&event.key);
+				break;
+			
+			case SDL_KEYUP:
+				keyboardEvent(&event.key);
+				break;
 
 			default:
 				break;
 			}
 		}
 
+		/*
+			1. SDL_RenderClear() wipes out the existing video framebuffer 
+			2. blit() is using SDL_RenderCopy() that moves the texture's contents to the video framebuffer
+			3. SDL_RenderPresent() puts it on the screen.
+		*/
+
 		// clear the window
 		SDL_RenderClear(renderer);
 
-		// blit operation (copying pixels to GPU memory)
+		// blit operation (copying pixels to GPU memory - framebuffer)
 		if (myTexture != nullptr)
-			blit(renderer, myTexture, 0, 0);
+			blit(renderer, myTexture, player.x, player.y);
 
 		// render
 		SDL_RenderPresent(renderer);
@@ -276,12 +308,39 @@ void blit(SDL_Renderer* renderer, SDL_Texture* texture, int x, int y)
 	finalRect.w = 32;
 	finalRect.h = 32;
 
-	SDL_QueryTexture(texture, NULL, NULL, &finalRect.w, &finalRect.h);
+	SDL_QueryTexture(texture, nullptr, nullptr, &finalRect.w, &finalRect.h);
 
 	int ret = SDL_RenderCopy(renderer, texture, nullptr, &finalRect);
 
 	if (ret < 0)
 	{
 		std::cout << "(!) Failed to copy texture to renderer: " << SDL_GetError() << std::endl;
+	}
+}
+
+
+void keyboardEvent(SDL_KeyboardEvent* e)
+{
+	//if (e->repeat == 0)
+	{
+		if (e->keysym.scancode == SDL_SCANCODE_UP)
+		{
+			player.y -= 5;
+		}
+
+		if (e->keysym.scancode == SDL_SCANCODE_DOWN)
+		{
+			player.y += 5;
+		}
+
+		if (e->keysym.scancode == SDL_SCANCODE_LEFT)
+		{
+			player.x -= 5;
+		}
+
+		if (e->keysym.scancode == SDL_SCANCODE_RIGHT)
+		{
+			player.x += 5;
+		}
 	}
 }
