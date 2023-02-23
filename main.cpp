@@ -4,6 +4,8 @@
 
 
 #include <SDL.h>
+#include <SDL_mixer.h>
+
 #include <iostream>
 #include <string>
 
@@ -28,6 +30,38 @@ typedef struct entity
 
 
 entity player { 0, 0 };
+
+static Mix_Chunk* g_wave = nullptr;
+
+void cleanAudioStuff()
+{
+	if (g_wave)
+	{
+		Mix_FreeChunk(g_wave);
+		g_wave = nullptr;
+	}
+}
+
+#define TEST_MIX_CHANNELFINISHED
+
+#ifdef TEST_MIX_CHANNELFINISHED  /* rcg06072001 */
+
+static volatile int channel_is_done = 0;
+
+static void SDLCALL channel_complete_callback(int chan)
+{
+	//Mix_Chunk* done_chunk = Mix_GetChunk(chan);
+	//
+	//SDL_Log("We were just alerted that Mixer channel #%d is done.\n", chan);
+	//SDL_Log("Channel's chunk pointer is (%p).\n", (void*)done_chunk);
+	//SDL_Log(" Which %s correct.\n", (g_wave == done_chunk) ? "is" : "is NOT");
+	//
+	//channel_is_done = 1;
+
+	std::cout << "(@) channel_complete_callback!!!" << std::endl;
+}
+
+#endif
 
 
 /*
@@ -55,14 +89,17 @@ int main(int argc, char* argv[])
 			- SDL_INIT_NOPARACHUTE: compatibility; this flag is ignored
 	*/
 
-	int errorCode = SDL_Init(SDL_INIT_VIDEO);
-
-	if (errorCode != 0)
+	if (SDL_Init(SDL_INIT_VIDEO) != 0)
 	{
-		std::cout << "(!) Failed to initialize the video subsystem! Error code: " << errorCode << " - " << SDL_GetError() << std::endl;
+		std::cout << "(!) Failed to initialize the video subsystem! " << SDL_GetError() << std::endl;
 	}
 
+	if (SDL_Init(SDL_INIT_AUDIO) < 0)
+	{
+		std::cout << "(!) Failed to initialize the audio subsystem! " << SDL_GetError() << std::endl;
+	}
 
+		
 	/*
 		Create a window with the specified position, dimensions, and flags.
 
@@ -94,6 +131,7 @@ int main(int argc, char* argv[])
 		using SDL_GL_CreateContext() after window creation, before calling any OpenGL functions.
 	*/
 
+
 	//Uint32 windowFlags = SDL_WINDOW_FULLSCREEN_DESKTOP;
 	Uint32 windowFlags = 0;
 	SDL_Window* screen = SDL_CreateWindow("SDL Playground", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT, windowFlags);
@@ -106,6 +144,16 @@ int main(int argc, char* argv[])
 
 	/*
 		Creating a 2D rendering context for a window.
+		
+		A renderer hides the details of how we draw into the window.
+
+		This might be using Direct3D, OpenGL, OpenGL ES, or software surfaces behind the scenes, depending on what the system offers;
+		your code doesn't change, regardless of what SDL chooses (although you are welcome to force one kind of renderer or another).
+		
+		If you want to attempt to force sync-to-vblank to reduce tearing, you can use SDL_RENDERER_PRESENTVSYNC instead of zero for the third parameter.
+		
+		You shouldn't create a window with the SDL_WINDOW_OPENGL flag here. If SDL_CreateRenderer() decides it wants to use OpenGL,
+		it'll update the window appropriately for you.
 
 		Follows the enumeration of rendering flags:
 
@@ -140,19 +188,57 @@ int main(int argc, char* argv[])
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 	SDL_RenderSetLogicalSize(renderer, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
 
+
+	/*
+		Initialization before the game loop
+	*/
+
 	// loading a simple texture
 	//SDL_Texture* myTexture = loadTexture(renderer, "yourimage.png");
 	SDL_Texture* myTexture = nullptr;
-
-
-	/*
-		Game Loop
-	*/
 
 	bool isRunning = true;
 	
 	SDL_SetRenderDrawColor(renderer, 96, 128, 255, 255);
 	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+	/*
+		AUDIO STUFF
+	*/
+	
+	int audioRate = MIX_DEFAULT_FREQUENCY;
+	Uint16 audioFormat = MIX_DEFAULT_FORMAT;
+	int audioChannels = MIX_DEFAULT_CHANNELS; 
+
+	// initialize SDL_mixer 
+	if (Mix_OpenAudio(audioRate, audioFormat, audioChannels, 4096) < 0)
+	{
+		std::cout << "(!) Failed to MIX open audio: " << SDL_GetError() << std::endl;
+	}
+
+	/*
+		This function might cover all of an application's needs, but for those that
+		need more flexibility, the more powerful version of this function is
+		Mix_OpenAudioDevice(). 
+	*/
+
+	// find out what the actual audio device parameters are.
+	Mix_QuerySpec(&audioRate, &audioFormat, &audioChannels);
+
+	// load a supported audio format into a chunk.
+	g_wave = Mix_LoadWAV("youraudio.wav");
+
+	if (g_wave == nullptr)
+	{
+		std::cout << "(!) Failed to open file: " << SDL_GetError() << std::endl;
+	}
+	
+	Mix_PlayChannel(0, g_wave, 1000);
+
+
+	/*
+		Game Loop
+	*/
 
 	while (isRunning)
 	{
@@ -167,7 +253,6 @@ int main(int argc, char* argv[])
 				isRunning = false;
 				break;
 			
-
 			/*
 				keyboard events
 			*/
@@ -184,6 +269,7 @@ int main(int argc, char* argv[])
 				break;
 			}
 		}
+
 
 		/*
 			1. SDL_RenderClear() wipes out the existing video framebuffer 
@@ -268,8 +354,7 @@ SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename)
 
 	*/
 
-	//SDL_CreateTextureFromSurface();
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, width, height);
 
 	if (texture == nullptr)
 	{
@@ -280,10 +365,12 @@ SDL_Texture* loadTexture(SDL_Renderer* renderer, std::string filename)
 
 	SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
+
 	/*
 		Update the given texture rectangle with new pixel data.
 		This will upload your pixels to GPU memory.
 	*/
+
 	int ret = SDL_UpdateTexture(texture, nullptr, pixels, width * channel);
 
 	if (ret)
