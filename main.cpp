@@ -51,11 +51,11 @@ static volatile int channel_is_done = 0;
 static void SDLCALL channel_complete_callback(int chan)
 {
 	//Mix_Chunk* done_chunk = Mix_GetChunk(chan);
-	//
+	
 	//SDL_Log("We were just alerted that Mixer channel #%d is done.\n", chan);
 	//SDL_Log("Channel's chunk pointer is (%p).\n", (void*)done_chunk);
 	//SDL_Log(" Which %s correct.\n", (g_wave == done_chunk) ? "is" : "is NOT");
-	//
+	
 	//channel_is_done = 1;
 
 	std::cout << "(@) channel_complete_callback!!!" << std::endl;
@@ -63,6 +63,147 @@ static void SDLCALL channel_complete_callback(int chan)
 
 #endif
 
+/*
+*/
+class SDLP_Window {
+public:
+	SDLP_Window() : win{ nullptr }, renderer{ nullptr } {}
+	~SDLP_Window() {}
+
+	SDLP_Window(const SDLP_Window& copy) = delete; // copy constructor
+	SDLP_Window(SDLP_Window&& move) = delete; // move constructor
+	SDLP_Window& operator=(const SDLP_Window& copy) = delete; // copy assignment
+
+	void create(std::string title, int width, int height) {
+
+		/*
+			Create a window with the specified position, dimensions, and flags.
+
+			Follows the list fo window flags:
+
+				- SDL_WINDOW_FULLSCREEN: fullscreen window
+				- SDL_WINDOW_FULLSCREEN_DESKTOP: fullscreen window at the current desktop resolution
+				- SDL_WINDOW_OPENGL: window usable with OpenGL context
+				- SDL_WINDOW_VULKAN: window usable with a Vulkan instance
+				- SDL_WINDOW_SHOWN: window is visible
+				- SDL_WINDOW_HIDDEN: window is not visible
+				- SDL_WINDOW_BORDERLESS: no window decoration
+				- SDL_WINDOW_RESIZABLE: window can be resized
+				- SDL_WINDOW_MINIMIZED: window is minimized
+				- SDL_WINDOW_MAXIMIZED: window is maximized
+				- SDL_WINDOW_INPUT_GRABBED: window has grabbed input focus
+				- SDL_WINDOW_INPUT_FOCUS: window has input focus
+				- SDL_WINDOW_MOUSE_FOCUS: window has mouse focus
+				- SDL_WINDOW_FOREIGN: window not created by SDL
+				- SDL_WINDOW_ALLOW_HIGHDPI: window should be created in high-DPI mode if supported (>= SDL 2.0.1)
+				- SDL_WINDOW_MOUSE_CAPTURE: window has mouse captured (unrelated to INPUT_GRABBED, >= SDL 2.0.4)
+				- SDL_WINDOW_ALWAYS_ON_TOP: window should always be above others (X11 only, >= SDL 2.0.5)
+				- SDL_WINDOW_SKIP_TASKBAR: window should not be added to the taskbar (X11 only, >= SDL 2.0.5)
+				- SDL_WINDOW_UTILITY: window should be treated as a utility window (X11 only, >= SDL 2.0.5)
+				- SDL_WINDOW_TOOLTIP: window should be treated as a tooltip (X11 only, >= SDL 2.0.5)
+				- SDL_WINDOW_POPUP_MENU: window should be treated as a popup menu (X11 only, >= SDL 2.0.5)
+
+			The SDL_WINDOW_OPENGL flag prepares your window for use with OpenGL, but you will still need to create an OpenGL context
+			using SDL_GL_CreateContext() after window creation, before calling any OpenGL functions.
+
+			Note: Fullscreen desktop flag gives you the whole display and ignores any dimensions you specify. The game window should
+				  come up immediately, without waiting for the monitor to click into a new resolution, and we'll be using the GPU to
+				  scale to the desktop size, which tends to be faster and cleaner-looking than if an LCD is faking a lower resolution.
+				  Added bonus: none of your background windows are resizing themselves right now.
+		*/
+
+		//Uint32 windowFlags = SDL_WINDOW_FULLSCREEN_DESKTOP;
+		Uint32 windowFlags = 0;
+		win = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, windowFlags);
+
+		if (win == nullptr)
+		{
+			std::cout << "(!) Failed to create the SDL window: " << SDL_GetError() << std::endl;
+		}
+
+
+		/*
+			Choosing between OpenGL Renderer from scratch or SDL2 Renderer context
+
+			A renderer hides the details of how we draw into the window. This might be using Direct3D, OpenGL, OpenGL ES, or software surfaces
+			behind the scenes, depending on what the system offers; your code doesn't change, regardless of what SDL chooses (although you are
+			welcome to force one kind of renderer or another).
+
+			You shouldn't create a window with the SDL_WINDOW_OPENGL flag here. If SDL_CreateRenderer() decides it wants to use OpenGL, it'll
+			update the window appropriately for you.
+
+			You can also do this all in one step with SDL_CreateWindowAndRenderer().
+		*/
+
+
+		/*
+			Creating a 2D rendering context for a window.
+
+			A renderer hides the details of how we draw into the window.
+
+			This might be using Direct3D, OpenGL, OpenGL ES, or software surfaces behind the scenes, depending on what the system offers;
+			your code doesn't change, regardless of what SDL chooses (although you are welcome to force one kind of renderer or another).
+
+			If you want to attempt to force sync-to-vblank to reduce tearing, you can use SDL_RENDERER_PRESENTVSYNC instead of zero for the third parameter.
+
+			You shouldn't create a window with the SDL_WINDOW_OPENGL flag here. If SDL_CreateRenderer() decides it wants to use OpenGL,
+			it'll update the window appropriately for you.
+
+			Follows the enumeration of rendering flags:
+
+				- SDL_RENDERER_SOFTWARE: the renderer is a software fallback
+				- SDL_RENDERER_ACCELERATED: the renderer uses hardware acceleration
+				- SDL_RENDERER_PRESENTVSYNC: present is synchronized with the refresh rate
+				- SDL_RENDERER_TARGETTEXTURE: the renderer supports rendering to texture
+		*/
+
+		Uint32 rendererFlags = SDL_RENDERER_ACCELERATED;
+		renderer = SDL_CreateRenderer(win, -1, rendererFlags);
+
+		if (renderer == nullptr)
+		{
+			std::cout << "(!) Failed to create the SDL renderer: " << SDL_GetError() << std::endl;
+		}
+
+		int numRenderDrivers = SDL_GetNumRenderDrivers();
+		std::cout << "> Number of 2D rendering drivers available for the current display: " << numRenderDrivers << std::endl;
+
+		// get info about a specific 2D rendering driver for the current display
+
+		for (int driver = 0; driver < numRenderDrivers; driver++)
+		{
+			SDL_RendererInfo rendererInfo;
+			SDL_GetRenderDriverInfo(driver, &rendererInfo);
+			std::cout << "> [" << driver << "] Name of the renderer : " << rendererInfo.name << std::endl;
+		}
+
+
+		/*
+			For 2.0, the render API lets you do this and it will do the right thing for you. This is nice in that you can change
+			the logical rendering size to achieve various effects, but the primary use is this: instead of trying to make the system
+			work with your rendering size, we can now make your rendering size work with the system.
+			
+			For example, on my 1920x1200 monitor, this app thinks it's talking to a 640x480 resolution now, but SDL is using the GPU to
+			scale it up to use all those pixels. Note that 640x480 and 1920x1200 aren't the same aspect ratio: SDL takes care of that, too,
+			scaling as much as possible and letterboxing the difference.
+		*/
+
+		// make the scaled rendering look smoother.
+		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+		SDL_RenderSetLogicalSize(renderer, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
+
+
+	}
+
+
+	void render() {
+
+	}
+
+//private:
+	SDL_Window* win;
+	SDL_Renderer* renderer;
+};
 
 /*
 	Entry Point
@@ -99,94 +240,14 @@ int main(int argc, char* argv[])
 		std::cout << "(!) Failed to initialize the audio subsystem! " << SDL_GetError() << std::endl;
 	}
 
-		
-	/*
-		Create a window with the specified position, dimensions, and flags.
-
-		Follows the list fo window flags:
-
-			- SDL_WINDOW_FULLSCREEN: fullscreen window
-			- SDL_WINDOW_FULLSCREEN_DESKTOP: fullscreen window at the current desktop resolution
-			- SDL_WINDOW_OPENGL: window usable with OpenGL context
-			- SDL_WINDOW_VULKAN: window usable with a Vulkan instance
-			- SDL_WINDOW_SHOWN: window is visible
-			- SDL_WINDOW_HIDDEN: window is not visible
-			- SDL_WINDOW_BORDERLESS: no window decoration
-			- SDL_WINDOW_RESIZABLE: window can be resized
-			- SDL_WINDOW_MINIMIZED: window is minimized
-			- SDL_WINDOW_MAXIMIZED: window is maximized
-			- SDL_WINDOW_INPUT_GRABBED: window has grabbed input focus
-			- SDL_WINDOW_INPUT_FOCUS: window has input focus
-			- SDL_WINDOW_MOUSE_FOCUS: window has mouse focus
-			- SDL_WINDOW_FOREIGN: window not created by SDL
-			- SDL_WINDOW_ALLOW_HIGHDPI: window should be created in high-DPI mode if supported (>= SDL 2.0.1)
-			- SDL_WINDOW_MOUSE_CAPTURE: window has mouse captured (unrelated to INPUT_GRABBED, >= SDL 2.0.4)
-			- SDL_WINDOW_ALWAYS_ON_TOP: window should always be above others (X11 only, >= SDL 2.0.5)
-			- SDL_WINDOW_SKIP_TASKBAR: window should not be added to the taskbar (X11 only, >= SDL 2.0.5)
-			- SDL_WINDOW_UTILITY: window should be treated as a utility window (X11 only, >= SDL 2.0.5)
-			- SDL_WINDOW_TOOLTIP: window should be treated as a tooltip (X11 only, >= SDL 2.0.5)
-			- SDL_WINDOW_POPUP_MENU: window should be treated as a popup menu (X11 only, >= SDL 2.0.5)
-
-		The SDL_WINDOW_OPENGL flag prepares your window for use with OpenGL, but you will still need to create an OpenGL context
-		using SDL_GL_CreateContext() after window creation, before calling any OpenGL functions.
-	*/
-
-
-	//Uint32 windowFlags = SDL_WINDOW_FULLSCREEN_DESKTOP;
-	Uint32 windowFlags = 0;
-	SDL_Window* screen = SDL_CreateWindow("SDL Playground", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT, windowFlags);
-
-	if (screen == nullptr)
-	{
-		std::cout << "(!) Failed to create the SDL window: " << SDL_GetError() << std::endl;
-	}
-
 
 	/*
-		Creating a 2D rendering context for a window.
-		
-		A renderer hides the details of how we draw into the window.
-
-		This might be using Direct3D, OpenGL, OpenGL ES, or software surfaces behind the scenes, depending on what the system offers;
-		your code doesn't change, regardless of what SDL chooses (although you are welcome to force one kind of renderer or another).
-		
-		If you want to attempt to force sync-to-vblank to reduce tearing, you can use SDL_RENDERER_PRESENTVSYNC instead of zero for the third parameter.
-		
-		You shouldn't create a window with the SDL_WINDOW_OPENGL flag here. If SDL_CreateRenderer() decides it wants to use OpenGL,
-		it'll update the window appropriately for you.
-
-		Follows the enumeration of rendering flags:
-
-			- SDL_RENDERER_SOFTWARE: the renderer is a software fallback
-			- SDL_RENDERER_ACCELERATED: the renderer uses hardware acceleration
-			- SDL_RENDERER_PRESENTVSYNC: present is synchronized with the refresh rate
-			- SDL_RENDERER_TARGETTEXTURE: the renderer supports rendering to texture
-
+		Creating a SDL Window!
+		Check the methods implementation to see a notes for how to create window using SDL2.
 	*/
 
-	Uint32 rendererFlags = SDL_RENDERER_ACCELERATED;
-	SDL_Renderer* renderer = SDL_CreateRenderer(screen, -1, rendererFlags);
-
-	if (renderer == nullptr)
-	{
-		std::cout << "(!) Failed to create the SDL renderer: " << SDL_GetError() << std::endl;
-	}
-
-	int numRenderDrivers = SDL_GetNumRenderDrivers();
-	std::cout << "> Number of 2D rendering drivers available for the current display: " << numRenderDrivers << std::endl;
-
-	// get info about a specific 2D rendering driver for the current display
-
-	for (int driver = 0; driver < numRenderDrivers; driver++)
-	{
-		SDL_RendererInfo rendererInfo;
-		SDL_GetRenderDriverInfo(driver, &rendererInfo);
-		std::cout << "> [" << driver << "] Name of the renderer : " << rendererInfo.name << std::endl;
-	}
-
-	// make the scaled rendering look smoother.
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-	SDL_RenderSetLogicalSize(renderer, WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
+	SDLP_Window window;
+	window.create("SDL Playground", WINDOW_SCREEN_WIDTH, WINDOW_SCREEN_HEIGHT);
 
 
 	/*
@@ -199,8 +260,8 @@ int main(int argc, char* argv[])
 
 	bool isRunning = true;
 	
-	SDL_SetRenderDrawColor(renderer, 96, 128, 255, 255);
-	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(window.renderer, 96, 128, 255, 255);
+	SDL_SetRenderDrawBlendMode(window.renderer, SDL_BLENDMODE_BLEND);
 
 	/*
 		AUDIO STUFF
@@ -226,14 +287,15 @@ int main(int argc, char* argv[])
 	Mix_QuerySpec(&audioRate, &audioFormat, &audioChannels);
 
 	// load a supported audio format into a chunk.
-	g_wave = Mix_LoadWAV("youraudio.wav");
+	g_wave = Mix_LoadWAV("m3.wav");
 
 	if (g_wave == nullptr)
 	{
 		std::cout << "(!) Failed to open file: " << SDL_GetError() << std::endl;
 	}
 	
-	Mix_PlayChannel(0, g_wave, 1000);
+	Mix_PlayChannel(-1, g_wave, 100);
+	
 
 
 	/*
@@ -255,12 +317,7 @@ int main(int argc, char* argv[])
 			
 			/*
 				keyboard events
-			*/
-
-			case SDL_KEYDOWN:
-				keyboardEvent(&event.key);
-				break;
-			
+			*/			
 			case SDL_KEYUP:
 				keyboardEvent(&event.key);
 				break;
@@ -278,14 +335,14 @@ int main(int argc, char* argv[])
 		*/
 
 		// clear the window
-		SDL_RenderClear(renderer);
+		SDL_RenderClear(window.renderer);
 
 		// blit operation (copying pixels to GPU memory - framebuffer)
 		if (myTexture != nullptr)
-			blit(renderer, myTexture, player.x, player.y);
+			blit(window.renderer, myTexture, player.x, player.y);
 
 		// render
-		SDL_RenderPresent(renderer);
+		SDL_RenderPresent(window.renderer);
 
 		// governing the frame time
 		SDL_Delay(16);
@@ -296,7 +353,7 @@ int main(int argc, char* argv[])
 		Destroy the rendering context for a window and free associated textures.
 	*/
 
-	SDL_DestroyRenderer(renderer);
+	SDL_DestroyRenderer(window.renderer);
 
 
 	/*
