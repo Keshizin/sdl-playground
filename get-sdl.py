@@ -3,9 +3,9 @@ from zipfile import ZipFile
 import os
 import sys
 
-sdl_version = '2.26.2'
-sdl_name = 'SDL2-' + sdl_version + '.zip'
-url = 'https://github.com/libsdl-org/SDL/releases/download/release-' + sdl_version + '/' + sdl_name
+sdl_version = '3.1.0'
+sdl_name = 'SDL3-' + sdl_version + '.zip'
+url = 'https://github.com/libsdl-org/SDL/releases/download/prerelease-' + sdl_version + '/' + sdl_name
 
 #sdl_mixer_version = '2.6.3'
 #sdl_mixer_name = 'SDL_mixer-' + sdl_mixer_version + '.zip'
@@ -26,6 +26,6 @@ def main():
 	with ZipFile(sdl_name, 'r') as zObject:
 		zObject.extractall()
 
-	
+
 if __name__ == "__main__":
 	main()

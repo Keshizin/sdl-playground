@@ -2,30 +2,21 @@
 
 The purpose of this project is study **Simple DirectMedia (SDL)** and other popular library/framework with SDL.
 
-- SDL and OpenGL
+- SDL3, SDL2
+- Pure OpenGL setup for SDL
 - nothings/stb
 - SDL Audio (SDL_mixer)
-- SDL_TTF
 - FreeType
 - FFMPEG
+- OpenAL
 
-## Notes for dependecies
+## Pre-requisites to build this project
 
-Todas as bibliotecas de terceiros não estão incluídas neste projeto, porém temos scripts para obtê-las e copiar os seus binários no diretório correto. Em alguns casos, será necessário compilá-las também (por exemplo, SDL2 para a plataforma Microsoft Window).
+All binaries are not included in this project. You must run the scripts to get the binaries (e.g. ```get-sdl.bat``` for _Microsoft Windows Platform_).
 
-#### Obtendo e compilando SDL2
-
-Caso você esteja na plataforma Microsoft Windows, basta executar o script abaixo para compilar o SDL2 e copiar os binários gerados para os diretórios corretos:
-
-```
-> get-sdl.bat
-```
-
-
-#### Obtendo nothings/stb
-
-Para obter os arquivos de header de nothing/stb, basta executar o script abaixo:
+To run the scripts you must have Python.
 
 ```
-> get-stb.bat
+  // getting the SDL binaries
+  get-sdl.bat
 ```

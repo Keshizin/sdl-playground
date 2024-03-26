@@ -1,24 +1,21 @@
 # git ignore for SDL-playground
 
-
 # ignoring SDL include headers
 include/SDL2/
 !include/SDL2/.keep
+include/SDL3/
+!include/SDL3/.keep
 include/stb/
 !include/stb/.keep
-
 
 # ignoring all lib binaries
 lib/
 !lib/.keep
 
-
 # ignoring bin binaries
 /bin/
 !bin/.keep
 
-
 # ignoring Microsoft Visual Studio stuff
 .vs/
 out/
-
