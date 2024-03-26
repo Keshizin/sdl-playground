@@ -24,7 +24,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 # including path for include
 #
 
-include_directories("${PROJECT_SOURCE_DIR}/include/SDL2")
+include_directories("${PROJECT_SOURCE_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/include/stb")
 
 
@@ -35,6 +35,4 @@ include_directories("${PROJECT_SOURCE_DIR}/include/stb")
 link_directories("${PROJECT_SOURCE_DIR}/lib")
 add_executable(${APP_EXE} main.cpp)
 
-target_link_libraries(${APP_EXE} SDL2 SDL2main SDL2_mixer )
-
-
+target_link_libraries(${APP_EXE} SDL3)
